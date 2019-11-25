@@ -1,34 +1,31 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-
-#include <vector>
-#include <fstream>
+#include <stdlib.h>
 
 #include "wavpack.h"
-#include "md5.h"
 
 using namespace std;
 
+#define BUF_SAMPLES 1024
+
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+    WavpackContext *wpc;
     char error [80];
-    WavpackContext *wpc = WavpackOpenMemoryFile ((void *) data, size, NULL, 0, error, OPEN_DSD_NATIVE | OPEN_ALT_TYPES, 0);
+    int num_chans;
 
-    char md5_string1 [] = "????????????????????????????????";
-    char md5_string2 [] = "????????????????????????????????";
-    int32_t *decoded_samples, num_chans, bps, test_index, qmode, total_samples;
-    unsigned char md5_initial [16], md5_stored [16];
-    MD5_CTX md5_global, md5_local;
-    unsigned char *chunked_md5;
+    wpc = WavpackOpenMemoryFile ((void *) data, size, NULL, 0, error, OPEN_TAGS | OPEN_WRAPPER | OPEN_DSD_NATIVE | OPEN_ALT_TYPES, 0);
 
     if (!wpc)
         return 1;
 
     num_chans = WavpackGetNumChannels (wpc);
-    total_samples = WavpackGetNumSamples64 (wpc);
-    bps = WavpackGetBytesPerSample (wpc);
-    qmode = WavpackGetQualifyMode (wpc);
+
+    if (num_chans && num_chans <= 256) {
+        int32_t decoded_samples [BUF_SAMPLES * num_chans];
+        while (WavpackUnpackSamples (wpc, decoded_samples, BUF_SAMPLES));
+    }
 
     WavpackCloseFile (wpc);
 
