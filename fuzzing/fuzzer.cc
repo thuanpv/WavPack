@@ -122,7 +122,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     WavpackRawContext raw_wv;
     WavpackContext *wpc;
     char error [80];
-    int num_chans;
+    int num_chans, bps, qmode, total_samples;
 
     times_called++;
 
@@ -140,7 +140,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     successful_opens++;
     num_chans = WavpackGetNumChannels (wpc);
+    total_samples = WavpackGetNumSamples64 (wpc);
+    bps = WavpackGetBytesPerSample (wpc);
+    qmode = WavpackGetQualifyMode (wpc);
 
+    // Decode all
     if (num_chans && num_chans <= 256) {
         int32_t decoded_samples [BUF_SAMPLES * num_chans];
         int unpack_result;
@@ -151,6 +155,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         } while (unpack_result);
     }
 
+    // Seek to the beginning
+    WavpackSeekSample (wpc, 0); 
+    
     WavpackCloseFile (wpc);
 
     return 0;
