@@ -131,7 +131,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     memset (&raw_wv, 0, sizeof (WavpackRawContext));
     raw_wv.dptr = raw_wv.sptr = (unsigned char *) data;
     raw_wv.eptr = raw_wv.dptr + size;
-    wpc = WavpackOpenFileInputEx64 (&raw_reader, &raw_wv, NULL, error, OPEN_TAGS | OPEN_WRAPPER | OPEN_DSD_NATIVE | OPEN_ALT_TYPES, 0);
+    wpc = WavpackOpenFileInputEx64 (&raw_reader, &raw_wv, NULL, error, OPEN_TAGS | OPEN_WRAPPER | OPEN_DSD_AS_PCM | OPEN_NO_CHECKSUM, 0);
 
     if (!wpc) {
         retval = 1;
