@@ -260,7 +260,7 @@ static int64_t find_header (WavpackStreamReader64 *reader, void *id, int64_t fil
 
         if (sp < ep) {
             bleft = (int)(ep - sp);
-            memcpy (buffer, sp, bleft);
+            memmove (buffer, sp, bleft);
             ep -= (sp - buffer);
             sp = buffer;
         }
