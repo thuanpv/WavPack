@@ -118,31 +118,68 @@ static WavpackStreamReader64 raw_reader = {
 };
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-    static int64_t times_called, successful_opens, samples_decoded;
+    static long long times_called, opens, seeks, samples_decoded, text_tags, binary_tags;
     WavpackRawContext raw_wv;
     WavpackContext *wpc;
     char error [80];
-    int num_chans, bps, qmode, total_samples;
+    int num_chans, bps, mode, qmode;
+    int64_t total_samples;
+    int retval = 0;
 
     times_called++;
-
-    if (!(times_called & 0x3FF))
-        printf ("LLVMFuzzerTestOneInput() called %lld times, %lld successful opens, %lld samples decoded\n",
-            (long long) times_called, (long long) successful_opens, (long long) samples_decoded);
 
     memset (&raw_wv, 0, sizeof (WavpackRawContext));
     raw_wv.dptr = raw_wv.sptr = (unsigned char *) data;
     raw_wv.eptr = raw_wv.dptr + size;
     wpc = WavpackOpenFileInputEx64 (&raw_reader, &raw_wv, NULL, error, OPEN_TAGS | OPEN_WRAPPER | OPEN_DSD_NATIVE | OPEN_ALT_TYPES, 0);
 
-    if (!wpc)
-        return 1;
+    if (!wpc) {
+        retval = 1;
+        goto exit;
+    }
 
-    successful_opens++;
+    opens++;
     num_chans = WavpackGetNumChannels (wpc);
     total_samples = WavpackGetNumSamples64 (wpc);
     bps = WavpackGetBytesPerSample (wpc);
     qmode = WavpackGetQualifyMode (wpc);
+    mode = WavpackGetMode (wpc);
+
+    // Get all the metadata tags (text & binary)
+    if (mode & MODE_VALID_TAG) {
+        int num_binary_items = WavpackGetNumBinaryTagItems (wpc);
+        int num_items = WavpackGetNumTagItems (wpc), i;
+
+        for (i = 0; i < num_items; ++i) {
+            int item_len, value_len, j;
+            char *item, *value;
+
+            item_len = WavpackGetTagItemIndexed (wpc, i, NULL, 0);
+            item = (char *) malloc (item_len + 1);
+            WavpackGetTagItemIndexed (wpc, i, item, item_len + 1);
+            value_len = WavpackGetTagItem (wpc, item, NULL, 0);
+            value = (char *) malloc (value_len + 1);
+            WavpackGetTagItem (wpc, item, value, value_len + 1);
+            text_tags++;
+            free (value);
+            free (item);
+        }
+
+        for (i = 0; i < num_binary_items; ++i) {
+            int item_len, value_len;
+            char *item, *value;
+
+            item_len = WavpackGetBinaryTagItemIndexed (wpc, i, NULL, 0);
+            item = (char *) malloc (item_len + 1);
+            WavpackGetBinaryTagItemIndexed (wpc, i, item, item_len + 1);
+            value_len = WavpackGetBinaryTagItem (wpc, item, NULL, 0);
+            value = (char *) malloc (value_len);
+            WavpackGetBinaryTagItem (wpc, item, value, value_len);
+            binary_tags++;
+            free (value);
+            free (item);
+        }
+    }
 
     // Decode all
     if (num_chans && num_chans <= 256) {
@@ -155,10 +192,47 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         } while (unpack_result);
     }
 
-    // Seek to the beginning
-    WavpackSeekSample (wpc, 0); 
+    // Seek to 1/3 of the way in plus 1000 samples (definitely not a block boundary)
+    if (WavpackSeekSample64 (wpc, total_samples / 3 + 1000))
+        ++seeks;
     
     WavpackCloseFile (wpc);
 
+exit:
+    if (!(times_called & 0x3FF))
+        printf ("LLVMFuzzerTestOneInput(): %lld calls, %lld opens, %lld seeks, %lld samples, %lld text & %lld binary tags\n",
+            times_called, opens, seeks, samples_decoded, text_tags, binary_tags);
+
+    return retval;
+}
+
+#if 0   // for stand-alone testing (sans fuzz)
+
+int main (void)
+{
+    unsigned char *buffer = (unsigned char *) malloc (1024*1024);
+    FILE *infile = fopen ("testfile.wv", "rb");
+    int bytes_read;
+
+    if (!infile) {
+        fprintf (stderr, "can't open file!\n");
+        return 1;
+    }
+
+    bytes_read = fread (buffer, 1, 1024*1024, infile);
+    printf ("read %d bytes\n", bytes_read);
+    fclose (infile);
+
+    int retval, count = 1024;
+
+    while (count--)
+        retval = LLVMFuzzerTestOneInput(buffer, bytes_read);
+
+    printf ("retval = %d\n", retval);
+
+    free (buffer);
+
     return 0;
 }
+
+#endif
