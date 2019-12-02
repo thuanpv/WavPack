@@ -208,19 +208,26 @@ exit:
 
 #if 0   // for stand-alone testing (sans fuzz)
 
-int main (void)
+#define MAXLEN 1048576
+
+int main (int argc, char **argv)
 {
-    unsigned char *buffer = (unsigned char *) malloc (1024*1024);
-    FILE *infile = fopen ("testfile.wv", "rb");
+    unsigned char *buffer = (unsigned char *) malloc (MAXLEN);
+    const char *filename = argc > 1 ? argv [1] : "testfile.wv";
+    FILE *infile = fopen (filename, "rb");
     int bytes_read;
 
     if (!infile) {
-        fprintf (stderr, "can't open file!\n");
+        fprintf (stderr, "can't open file %s!\n", filename);
         return 1;
     }
 
-    bytes_read = fread (buffer, 1, 1024*1024, infile);
-    printf ("read %d bytes\n", bytes_read);
+    bytes_read = fread (buffer, 1, MAXLEN, infile);
+    printf ("read %d bytes from file %s\n", bytes_read, filename);
+
+    if (bytes_read == MAXLEN)
+        printf ("warning: at maximum length, perhaps truncated!\n");
+
     fclose (infile);
 
     int retval, count = 1024;
