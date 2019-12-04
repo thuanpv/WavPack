@@ -206,7 +206,7 @@ exit:
     return retval;
 }
 
-#if 0   // for stand-alone testing (sans fuzz)
+#ifdef STAND_ALONE_TESTER   // for stand-alone testing (sans fuzz)
 
 #define MAXLEN 1048576
 
