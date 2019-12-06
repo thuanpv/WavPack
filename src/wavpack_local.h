@@ -269,7 +269,7 @@ typedef struct {
     const WavpackDecorrSpec *decorr_specs;
 
     struct {
-        unsigned char *byteptr, *endptr, (*probabilities) [256], **value_lookup, mode, ready;
+        unsigned char *byteptr, *endptr, (*probabilities) [256], *value_lookup_buffer, **value_lookup, mode, ready;
         int history_bins, p0, p1;
         int16_t (*summed_probabilities) [256];
         uint32_t low, high, value;

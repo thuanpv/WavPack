@@ -125,10 +125,11 @@ int32_t unpack_dsd_samples (WavpackContext *wpc, int32_t *buffer, uint32_t sampl
 // #define DSD_BYTE_READY(low,high) (!(((low) ^ (high)) >> 24))
 #define DSD_BYTE_READY(low,high) (!(((low) ^ (high)) & 0xff000000))
 #define MAX_HISTORY_BITS    5
+#define MAX_BIN_BYTES       1280    // for value lookup, per bin (2k - 512 - 256)
 
 static int init_dsd_block_fast (WavpackStream *wps, WavpackMetadata *wpmd)
 {
-    unsigned char history_bits, max_probability;
+    unsigned char history_bits, max_probability, *vlb;
     int total_summed_probabilities = 0, i;
 
     if (wps->dsd.byteptr == wps->dsd.endptr)
@@ -142,6 +143,7 @@ static int init_dsd_block_fast (WavpackStream *wps, WavpackMetadata *wpmd)
     wps->dsd.history_bins = 1 << history_bits;
 
     free_dsd_tables (wps);
+    vlb = wps->dsd.value_lookup_buffer = (unsigned char *)malloc (wps->dsd.history_bins * MAX_BIN_BYTES);
     wps->dsd.value_lookup = (unsigned char **)malloc (sizeof (*wps->dsd.value_lookup) * wps->dsd.history_bins);
     memset (wps->dsd.value_lookup, 0, sizeof (*wps->dsd.value_lookup) * wps->dsd.history_bins);
     wps->dsd.summed_probabilities = (int16_t (*)[256])malloc (sizeof (*wps->dsd.summed_probabilities) * wps->dsd.history_bins);
@@ -180,20 +182,23 @@ static int init_dsd_block_fast (WavpackStream *wps, WavpackMetadata *wpmd)
 
     for (wps->dsd.p0 = 0; wps->dsd.p0 < wps->dsd.history_bins; ++wps->dsd.p0) {
         int32_t sum_values;
-        unsigned char *vp;
 
         for (sum_values = i = 0; i < 256; ++i)
             wps->dsd.summed_probabilities [wps->dsd.p0] [i] = sum_values += wps->dsd.probabilities [wps->dsd.p0] [i];
 
         if (sum_values) {
             total_summed_probabilities += sum_values;
-            vp = wps->dsd.value_lookup [wps->dsd.p0] = (unsigned char *)malloc (sum_values);
+
+            if (total_summed_probabilities > wps->dsd.history_bins * MAX_BIN_BYTES)
+                return FALSE;
+
+            wps->dsd.value_lookup [wps->dsd.p0] = vlb;
 
             for (i = 0; i < 256; i++) {
                 int c = wps->dsd.probabilities [wps->dsd.p0] [i];
 
                 while (c--)
-                    *vp++ = i;
+                    *vlb++ = i;
             }
         }
     }

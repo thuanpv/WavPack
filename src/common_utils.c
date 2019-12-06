@@ -574,13 +574,12 @@ void free_dsd_tables (WavpackStream *wps)
         wps->dsd.summed_probabilities = NULL;
     }
 
+    if (wps->dsd.value_lookup_buffer) {
+        free (wps->dsd.value_lookup_buffer);
+        wps->dsd.value_lookup_buffer = NULL;
+    }
+
     if (wps->dsd.value_lookup) {
-        int i;
-
-        for (i = 0; i < wps->dsd.history_bins; ++i)
-            if (wps->dsd.value_lookup [i])
-                free (wps->dsd.value_lookup [i]);
-
         free (wps->dsd.value_lookup);
         wps->dsd.value_lookup = NULL;
     }
