@@ -141,6 +141,7 @@ static int init_dsd_block_fast (WavpackStream *wps, WavpackMetadata *wpmd)
 
     wps->dsd.history_bins = 1 << history_bits;
 
+    free_dsd_tables (wps);
     wps->dsd.value_lookup = (unsigned char **)malloc (sizeof (*wps->dsd.value_lookup) * wps->dsd.history_bins);
     memset (wps->dsd.value_lookup, 0, sizeof (*wps->dsd.value_lookup) * wps->dsd.history_bins);
     wps->dsd.summed_probabilities = (int16_t (*)[256])malloc (sizeof (*wps->dsd.summed_probabilities) * wps->dsd.history_bins);
@@ -316,7 +317,9 @@ static int init_dsd_block_high (WavpackStream *wps, WavpackMetadata *wpmd)
     if (rate_s != RATE_S)
         return FALSE;
 
-    wps->dsd.ptable = (int32_t *)malloc (PTABLE_BINS * sizeof (*wps->dsd.ptable));
+    if (!wps->dsd.ptable)
+        wps->dsd.ptable = (int32_t *)malloc (PTABLE_BINS * sizeof (*wps->dsd.ptable));
+
     init_ptable (wps->dsd.ptable, rate_i, rate_s);
 
     for (channel = 0; channel < ((flags & MONO_DATA) ? 1 : 2); ++channel) {

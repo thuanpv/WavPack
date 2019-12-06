@@ -674,6 +674,7 @@ void WavpackBigEndianToNative (void *data, char *format);
 void WavpackNativeToBigEndian (void *data, char *format);
 
 void install_close_callback (WavpackContext *wpc, void cb_func (void *wpc));
+void free_dsd_tables (WavpackStream *wps);
 void free_streams (WavpackContext *wpc);
 
 /////////////////////////////////// tag utilities ////////////////////////////////////
